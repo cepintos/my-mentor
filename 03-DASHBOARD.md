@@ -14,7 +14,8 @@ Una sola acción principal por momento.
   notas; todo se abre en la Biblioteca de conceptos) y *Herramientas* (las acciones que recomienda
   la etapa; el resto plegado).
 - **Biblioteca de conceptos:** se abre en esta misma pestaña, encima del dashboard, que sigue vivo
-  debajo. **← Dashboard** o la tecla `D` vuelve. Marca con ✓ lo que ya leíste y con un punto rojo
+  debajo. **📚 Biblioteca** en el header, o la tecla `D` fuera de un campo de texto, la abre donde
+  la dejaste o en el próximo documento sin leer. **← Dashboard** o `D` vuelve. Marca con ✓ lo que ya leíste y con un punto rojo
   el próximo documento de tu etapa. Si el documento abierto cambia en disco, se actualiza solo. Con
   Cmd o Ctrl, un enlace se abre en otra pestaña, como siempre.
 - **Columna lateral:** [Chispa](05-CHISPA.md), la ejecución en vivo, "Para revisar" (sólo checks y

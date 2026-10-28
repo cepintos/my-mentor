@@ -139,7 +139,7 @@ Follow `references/module-schema.md` exactly:
 
 1. **Learner profile:** write `course/00-PERFIL.md` from phase 3 (what they know, what they want to be able to do, language, time). If it exists, change only what the user confirmed.
 2. **Catalog:** create `course/catalog.json` if it does not exist. Add each new track to `tracks`; add the modules to the `complete` route in dependency order (or leave `routes` out entirely and the engine builds `complete`). Add the approved `commands` and `doctor` entries.
-3. One directory per unit: `course/<track>/<ID>-<slug>/` with `module.json` and docs `00-EMPEZA-ACA.md` … `12-GUIA-WEB.md`. IDs are one uppercase letter (one per track) and two digits.
+3. One directory per unit: `course/<track>/<ID>-<slug>/` with `module.json` and docs `00-EMPEZA-ACA.md` … `12-GUIA-WEB.md`. IDs are one uppercase letter (one per track) and two digits. Give each `module.json` one to three `facts`: short, checkable curiosities about that stage, which Chispa tells when the learner taps her.
 4. Reference pages in `course/<track>/referencia/` for every new REQUIRED concept, updating `referencia/00-INDICE.md`. Module docs link to them with relative paths.
 5. Lab templates under the module's `deliverable` path (by convention `learning-labs/<track>/<ID>/`) containing `TODO_LEARNER`, plus small fixtures if the lab needs them.
 6. Keep content separate from the engine: no module-specific code in `scripts/`, `tools/`, `dashboard/` or `companion/`. Course-specific tooling goes in `commands`, `doctor` and, when it needs its own dependencies, a manifest inside the lab (for example `learning-labs/<track>/package.json` with `cwd`).

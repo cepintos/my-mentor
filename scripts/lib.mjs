@@ -50,6 +50,10 @@ function manifestProblem(module) {
     if (!Array.isArray(module[key])) return `${key} tiene que ser una lista`;
   }
   if (!Number.isFinite(learningOrder(module))) return 'order tiene que ser un número';
+  if (module.facts !== undefined && (!Array.isArray(module.facts)
+    || module.facts.some(fact => typeof fact !== 'string' || !fact.trim() || fact.length > 300))) {
+    return 'facts tiene que ser una lista de datos cortos (textos de hasta 300 caracteres)';
+  }
   return null;
 }
 

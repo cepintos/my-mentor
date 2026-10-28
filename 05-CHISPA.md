@@ -3,7 +3,8 @@
 Chispa ⚡ es una centella eléctrica azul, tierna y ELECTRIFICANTEMENTE energética: vive en el panel
 derecho del dashboard, ve tu progreso real, recuerda lo que pasó en otras sesiones, te explica con
 el método del mentor y te manda recordatorios cuando el trabajo quedó a mitad de camino. Es sólo
-texto. A veces se pone lentes de sol 😎; tocala y vas a ver.
+texto. A veces se pone lentes de sol 😎; tocala y vas a ver. Casi siempre te tira un chiste, y a
+veces un dato de tu etapa: los saca del campo `facts` de su `module.json`.
 
 ## Qué necesita
 
@@ -71,7 +72,9 @@ Al empezar una charla, el servidor arma el contexto de arranque (`companion/boot
 - la línea indicativa de cada recuerdo.
 
 Ese contexto queda fijo durante la charla. Si querés que vuelva a mirar todo, usá **Nueva charla**.
-Dentro de una charla, Chispa consulta `estado_del_curso` cuando lo necesita.
+Si cambia `companion/PERSONA.md`, por ejemplo con una actualización del core, el próximo mensaje
+empieza una charla nueva solo. Las charlas viejas no se pierden: **Charlas anteriores** las muestra
+en sólo lectura. Dentro de una charla, Chispa consulta `estado_del_curso` cuando lo necesita.
 
 Sin curso todavía, Chispa te ayuda a pensar qué aprender y qué querés poder hacer. Los módulos los
 escribe module-builder en tu agente, no Chispa.

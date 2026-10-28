@@ -38,7 +38,7 @@ import {
 } from '../scripts/commands.mjs';
 import {bootText} from '../companion/boot.mjs';
 import {claudeExecutable, runTurn} from '../companion/claude.mjs';
-import {chispaConfig, CONVERSATIONS_DIR, PROFILE_FILE} from '../companion/config.mjs';
+import {chispaConfig, CONVERSATIONS_DIR, PERSONA_FILE, PROFILE_FILE} from '../companion/config.mjs';
 import {applyEdit, discardEdit, listEdits} from '../companion/edits.mjs';
 import {approveShard, discardShard, listShards, recordRun, summary} from '../companion/memory.mjs';
 import {progressSnapshot} from '../companion/progress.mjs';
@@ -589,6 +589,12 @@ let chispaTurn = null;
 const CONVERSATION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const conversationFile = id => path.join(CONVERSATIONS_DIR, `${id}.json`);
 
+// The persona is fixed for a whole conversation (--system-prompt-snapshot): when PERSONA.md changes
+// (new tools, new rules), the next message starts a new conversation instead of resuming the old one.
+function personaHash() {
+  try { return crypto.createHash('sha256').update(fs.readFileSync(PERSONA_FILE)).digest('hex').slice(0, 16); } catch { return null; }
+}
+
 function latestConversation() {
   try {
     const [latest] = fs.readdirSync(CONVERSATIONS_DIR)
@@ -599,6 +605,30 @@ function latestConversation() {
   } catch {
     return null;
   }
+}
+
+// Past conversations, newest first, for the panel's read-only history.
+function conversationList() {
+  let names = [];
+  try { names = fs.readdirSync(CONVERSATIONS_DIR).filter(name => CONVERSATION_ID.test(name.replace(/\.json$/, ''))); } catch {}
+  return names.map(name => {
+    try {
+      const conversation = JSON.parse(fs.readFileSync(path.join(CONVERSATIONS_DIR, name), 'utf8'));
+      const first = conversation.messages.find(item => item.role === 'user')?.text || '';
+      const last = conversation.messages.at(-1)?.at || conversation.startedAt;
+      return {id: conversation.id, startedAt: conversation.startedAt, lastAt: last, count: conversation.messages.length, preview: first.replace(/\s+/g, ' ').slice(0, 90)};
+    } catch {
+      return null;
+    }
+  }).filter(Boolean).sort((left, right) => String(right.lastAt).localeCompare(String(left.lastAt)));
+}
+
+function readConversation(id) {
+  if (!CONVERSATION_ID.test(String(id))) throw new Error('id de charla inválido');
+  const file = conversationFile(id);
+  if (!fs.existsSync(file)) throw new Error('No existe esa charla');
+  const {startedAt, messages} = JSON.parse(fs.readFileSync(file, 'utf8'));
+  return {id, startedAt, messages};
 }
 
 function saveConversation(conversation) {
@@ -653,8 +683,10 @@ function startChispaTurn(payload) {
   if (chispaTurn) throw new Error('Chispa todavía está respondiendo el mensaje anterior');
   if (!claudeExecutable()) throw new Error('No encuentro el CLI "claude" en PATH.');
 
-  const previous = payload.fresh === true ? null : latestConversation();
-  const conversation = previous || {id: crypto.randomUUID(), startedAt: new Date().toISOString(), messages: []};
+  const persona = personaHash();
+  const latest = payload.fresh === true ? null : latestConversation();
+  const previous = latest && latest.persona === persona ? latest : null;
+  const conversation = previous || {id: crypto.randomUUID(), startedAt: new Date().toISOString(), persona, messages: []};
   const resume = conversation.messages.some(item => item.role === 'chispa' && !item.error);
   // A conversation whose only answers failed may have left a half-created session behind: start a new one.
   if (!resume && conversation.messages.some(item => item.role === 'chispa')) {
@@ -803,6 +835,8 @@ const server = http.createServer(async (request, response) => {
       return sendJson(response, 200, {stopped: true});
     }
     if (request.method === 'POST' && url.pathname === '/api/chispa/memory') return sendJson(response, 200, chispaMemory(await readJsonBody(request)));
+    if (request.method === 'GET' && url.pathname === '/api/chispa/conversations') return sendJson(response, 200, conversationList());
+    if (request.method === 'GET' && url.pathname === '/api/chispa/conversation') return sendJson(response, 200, readConversation(url.searchParams.get('id')));
     if (request.method === 'POST' && url.pathname === '/api/chispa/edit') return sendJson(response, 200, chispaEdit(await readJsonBody(request)));
     if (request.method === 'GET' && url.pathname === '/api/library') return sendJson(response, 200, libraryData());
     if (request.method === 'GET' && url.pathname === '/api/doc') {

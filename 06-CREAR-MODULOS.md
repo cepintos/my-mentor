@@ -24,7 +24,7 @@ Podés volver a usarlo para agregar un track, sumar etapas o reescribir una que 
 | --- | --- |
 | `course/00-PERFIL.md` | qué sabés, qué querés poder hacer, tu idioma y tu tiempo; todos los mentores lo leen |
 | `course/catalog.json` | tracks, recorridos, comandos y herramientas del doctor |
-| `course/<track>/<ID>-<slug>/module.json` | la etapa: pregunta, objetivo, dependencias, criterios y checks |
+| `course/<track>/<ID>-<slug>/module.json` | la etapa: pregunta, objetivo, dependencias, criterios, checks y datos curiosos para Chispa |
 | `course/<track>/<ID>-<slug>/00…12-*.md` | los documentos numerados de la etapa |
 | `course/<track>/referencia/*.md` | una página por concepto, para estudiar sin internet |
 | `learning-labs/<track>/<ID>/…` | plantillas del laboratorio con `TODO_LEARNER` |

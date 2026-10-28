@@ -11,6 +11,7 @@ mantiene el core.
 | `dashboard/index.html`, `app.js`, `styles.css` | la UI del dashboard, sin dependencias |
 | `dashboard/reader.html`, `reader.js` | la Biblioteca de conceptos, en un iframe encima del dashboard |
 | `dashboard/markdown.js` | renderer de Markdown compartido por los dos |
+| `dashboard/chispazos.js` | lo que dice Chispa al tocarla: chistes del core y los `facts` de cada etapa |
 | `dashboard/course-routes.mjs` | recorridos: selección, progreso, próxima etapa y validación |
 | `scripts/lib.mjs` | carga del catálogo y del progreso, evidencia y condiciones de cierre |
 | `scripts/commands.mjs` | agente, editor, comandos y doctor: de configuración a proceso |
@@ -41,7 +42,7 @@ prompt con el documento y el perfil incluidos y se lo pasa al agente de `mentor.
 | `POST /api/run`, `GET /api/run/:id`, `POST /api/run/:id/stop` | acciones de la lista cerrada |
 | `POST /api/open` | abre un archivo del laboratorio en el editor configurado |
 | `GET /api/library`, `GET /api/doc`, `GET /api/reading` | la Biblioteca de conceptos, su allowlist y la lectura de cada etapa |
-| `GET /api/chispa`, `POST /api/chispa`, `POST /api/chispa/stop`, `POST /api/chispa/memory`, `POST /api/chispa/edit` | Chispa |
+| `GET /api/chispa`, `POST /api/chispa`, `POST /api/chispa/stop`, `POST /api/chispa/memory`, `POST /api/chispa/edit`, `GET /api/chispa/conversations`, `GET /api/chispa/conversation` | Chispa |
 
 `/api/doc` sirve sólo documentos numerados (de la raíz, de `course/`, de cada track y de cada
 etapa) y las páginas planas de `course/<track>/referencia/`. README, AGENTS.md, JSON y código quedan

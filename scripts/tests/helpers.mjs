@@ -93,6 +93,7 @@ export function writeSampleCourse(root) {
       question: `¿Qué demuestra ${stage.id}?`,
       goal: 'Explicar una idea y probarla con un ejemplo propio.',
       concepts: ['idea'],
+      facts: stage.id === 'D00' ? ['Una idea probada con un ejemplo propio se recuerda mejor que tres leídas.'] : undefined,
       criteria: SAMPLE_CRITERIA,
       recommendedCommands: stage.id === 'D00' ? ['node-version', 'list-lab', 'doctor'] : [],
       checks: [

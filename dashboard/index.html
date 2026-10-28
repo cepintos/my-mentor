@@ -23,6 +23,7 @@
         </div>
       </div>
       <div class="header-actions">
+        <button id="libraryButton" type="button" class="library-button" title="Abrir la biblioteca de conceptos (D)">📚 Biblioteca</button>
         <button id="themeToggle" type="button" class="theme-toggle" title="Cambiar tema: automático → claro → oscuro">Tema: automático</button>
         <span id="liveStatus" class="live-status" aria-live="polite">
           <span class="live-dot" aria-hidden="true"></span>
@@ -125,6 +126,11 @@
               </div>
               <button id="chispaNew" type="button" class="quiet chispa-new" title="Empezar una charla nueva: Chispa vuelve a leer tu estado">Nueva charla</button>
             </div>
+            <details id="chispaHistory" class="chispa-history">
+              <summary>Charlas anteriores</summary>
+              <ul id="chispaHistoryList"></ul>
+            </details>
+            <div id="chispaViewing" class="chispa-viewing" hidden></div>
             <div id="chispaDrafts" class="chispa-drafts"></div>
             <ol id="chispaMessages" class="chispa-messages" aria-live="polite"></ol>
             <div id="chispaChips" class="chispa-chips"></div>

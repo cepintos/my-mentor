@@ -73,6 +73,7 @@ Source of truth: `scripts/lib.mjs` (loader), `scripts/commands.mjs` (commands an
   "goal": "Capacidad demostrable al terminar.",
   "product": "Por qué importa para el objetivo final.",
   "concepts": ["…"],
+  "facts": ["Dato corto y comprobable sobre la etapa."],
   "languages": ["…"],
   "flow": ["…"],
   "milestones": ["…"],
@@ -93,6 +94,7 @@ Source of truth: `scripts/lib.mjs` (loader), `scripts/commands.mjs` (commands an
 - `depends`: IDs that must be `done` first. They encode the prerequisite graph; keep them minimal and real.
 - `criteria`: become AC1…ACn. Copy each string **verbatim** into `07-CRITERIOS-DE-ACEPTACION.md` (`npm run check` compares them).
 - `reading` (optional): the docs of the Entender phase, in order. Default: `00-EMPEZA-ACA.md`, `01-BRIEF.md`, `13-ANATOMIA-DEL-ECOSISTEMA.md`, `02-CONCEPTOS.md`, `12-GUIA-WEB.md` (only the ones the module has).
+- `facts` (optional): one to three short, checkable curiosities about the stage, up to 300 characters each. Chispa tells one when the learner taps her; without facts she tells a joke. Anything else stops the loader.
 - `recommendedCommands`: ids that exist as core commands or in `commands`. Never invent commands.
 - `checks` kinds:
   - `file` / `contains`: `path`, with `not`, `contains` and `minBytes`. The file must exist as a template.

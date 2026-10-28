@@ -156,6 +156,24 @@ test('the dashboard runs Chispa with a fixed restricted invocation and streams t
   assert.equal(value(followUp.args, '--resume'), value(opening.args, '--session-id'));
   assert.ok(!followUp.args.includes('--append-system-prompt'));
   assert.ok(!fs.existsSync(path.join(root, 'mentor.config.json')));
+
+  // Past conversations are listed and read back; the browser never chooses a file.
+  const conversations = (await json('/api/chispa/conversations')).data;
+  assert.equal(conversations.length, 1);
+  assert.equal(conversations[0].count, 4);
+  assert.equal(conversations[0].preview, '¿Qué hago ahora?');
+  const past = (await json(`/api/chispa/conversation?id=${conversations[0].id}`)).data;
+  assert.deepEqual(past.messages.map(message => message.role), ['user', 'chispa', 'user', 'chispa']);
+  assert.equal((await request('/api/chispa/conversation?id=../../course-state')).status, 400);
+
+  // A new persona starts a new conversation instead of resuming the old one.
+  fs.appendFileSync(path.join(root, 'companion/PERSONA.md'), '\nRegla nueva de prueba.\n');
+  assert.equal((await request('/api/chispa', {message: 'Hola de nuevo'})).status, 202);
+  await idle();
+  const renewed = fs.readFileSync(path.join(root, '.companion/fake-claude-calls.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line))[2];
+  assert.ok(!renewed.args.includes('--resume'));
+  assert.ok(renewed.args.includes('--append-system-prompt'));
+  assert.equal((await json('/api/chispa/conversations')).data.length, 2);
 });
 
 test('reminders respect quiet hours, never repeat within the window and vanish with progress', async t => {

@@ -45,16 +45,18 @@ test('without routes the engine builds "complete" in dependency order', async t 
 test('an invalid module.json stops the loader with a message that names the file', async t => {
   const root = disposableRepo(t, {course: true});
   const file = path.join(root, 'course/demo/D01-segunda-etapa/module.json');
+  const original = fs.readFileSync(file, 'utf8');
   for (const [patch, message] of [
     [{id: 'd01'}, /id es una letra mayúscula/],
     [{criteria: 'uno'}, /criteria tiene que ser una lista/],
     [{order: 'primero'}, /order tiene que ser un número/],
+    [{facts: 'un dato suelto'}, /facts tiene que ser una lista/],
+    [{facts: ['x'.repeat(301)]}, /facts tiene que ser una lista/],
   ]) {
-    const module = {...JSON.parse(fs.readFileSync(file, 'utf8')), ...patch};
-    fs.writeFileSync(file, JSON.stringify(module));
+    fs.writeFileSync(file, JSON.stringify({...JSON.parse(original), ...patch}));
     const lib = await libOf(root);
     assert.throws(() => lib.loadCatalog(), error => /D01-segunda-etapa\/module\.json/.test(error.message) && message.test(error.message));
-    fs.writeFileSync(file, JSON.stringify({...module, id: 'D01', criteria: [], order: 1}));
+    fs.writeFileSync(file, original);
   }
 });
 

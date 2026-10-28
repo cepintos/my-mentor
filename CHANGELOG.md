@@ -11,10 +11,18 @@ nueva: [07-ACTUALIZAR-EL-CORE.md](07-ACTUALIZAR-EL-CORE.md).
 - La Biblioteca de conceptos se abre en la misma pestaña, encima del dashboard: **← Dashboard** o
   `D` vuelve. El documento abierto se actualiza solo cuando cambia en disco.
 - La Biblioteca marca con ✓ los documentos leídos y con un punto rojo el próximo de tu etapa.
+- **📚 Biblioteca** en el header, o la tecla `D`, la abre donde la dejaste o en el próximo documento
+  sin leer.
+- **Charlas anteriores** muestra tus charlas con Chispa en sólo lectura. Si cambia su persona, el
+  próximo mensaje empieza una charla nueva.
+- Al tocar a Chispa, a veces cuenta un dato de tu etapa: cada `module.json` puede traer `facts`, que
+  module-builder escribe y `npm run check` valida. Si no hay datos, cuenta un chiste.
+- Los avisos ya no se pisan, duran según su largo y se cierran con un clic.
 - El watcher avisa cada archivo que cambió, aunque varios cambien juntos.
 - El README empieza por el paso para clonar, y la guía de actualización trae la URL real del core.
 
-No hace falta tocar el curso.
+No hace falta tocar el curso: `facts` es opcional. Como cambió la persona de Chispa, tu próximo
+mensaje empieza una charla nueva.
 
 ## 0.1.0 — 2026-10-28
 

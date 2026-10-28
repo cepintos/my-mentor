@@ -1,5 +1,6 @@
 import {routeFor, routeModules, routeProgress, nextInRoute} from './course-routes.mjs';
 import {renderMarkdown} from './markdown.js';
+import {pickChispazo} from './chispazos.js';
 
 let data;
 let selectedRoute;
@@ -46,12 +47,20 @@ function showReader(visible) {
   if (visible) $('#readerFrame').focus();
 }
 
+// Without a path it shows the reader where it was left, or opens the selected stage's next read.
 function openReader(path) {
   const frame = $('#readerFrame');
-  if (!frame.getAttribute('src')) frame.src = readerUrl(path);
-  else frame.contentWindow?.postMessage({type: 'open-doc', path}, location.origin);
+  if (!frame.getAttribute('src')) frame.src = readerUrl(path || libraryStartDoc());
+  else if (path) frame.contentWindow?.postMessage({type: 'open-doc', path}, location.origin);
   if (location.hash !== READER_HASH) history.pushState({reader: true}, '', READER_HASH);
   showReader(true);
+}
+
+function libraryStartDoc() {
+  const module = data && selectedModule();
+  if (!module) return '00-EMPEZA-ACA.md'; // no stages yet: the mentor's guide
+  const unread = module.state?.reading?.find(item => !item.read);
+  return unread?.path || docEnding(module, '00-EMPEZA-ACA.md');
 }
 
 function closeReader() {
@@ -59,10 +68,15 @@ function closeReader() {
   showReader(false);
 }
 
+// One toast at a time: a new message restarts the timer, so the previous one can't hide it early.
+// Longer messages stay longer; a click dismisses it.
+let toastTimer;
 function toast(message) {
-  $('#toast').textContent = message;
-  $('#toast').classList.add('show');
-  setTimeout(() => $('#toast').classList.remove('show'), 2600);
+  const element = $('#toast');
+  element.textContent = message;
+  element.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => element.classList.remove('show'), Math.min(12000, Math.max(3000, 1200 + String(message).length * 55)));
 }
 
 // A fresh copy of the core has no course yet: the page then shows how to create one (renderEmptyCourse).
@@ -584,6 +598,7 @@ function focusPhase(module, phaseId, targetId) {
 // The panel keeps its own state: a dashboard refresh never wipes the draft or the conversation.
 let chispa = null;
 let chispaFresh = false;
+let chispaViewing = null; // a past conversation shown read-only; null shows the current one
 // Sunglasses are Chispa's signature; a tap (or, a third of the time, the mood of the day) flips them.
 let chispaGag = Math.random() < 0.33;
 
@@ -594,16 +609,6 @@ const MOOD_TEXT = {
   worried: 'Cortocircuito detectado: ¿lo miramos juntos?',
   sleepy: 'Batería baja… ¡volvé y me recargás!',
 };
-
-const CHISPA_QUIPS = [
-  '¡Bzzzt! Cosquillas de alto voltaje ⚡',
-  'Me puse los lentes porque tu futuro brilla demasiado 😎',
-  '1,21 gigawatts… mentira, funciono con 5 voltios y entusiasmo.',
-  '¿Sabías que soy 100% energía renovable? Me recargo con tus commits.',
-  'Dato: un rayo dura 0,2 s. Un TODO_LEARNER sin tocar, ¡semanas! Vamos ⚡',
-  'Hoy no hay cortocircuitos, hay chispazos de genialidad.',
-  'Si me tocás de nuevo me enchufo a tu cargador del celular 🔌',
-];
 
 function chispaGreeting() {
   const name = chispa?.learnerName ? `, ${chispa.learnerName}` : '';
@@ -629,14 +634,48 @@ function chispaBubble(message, streaming = false) {
 function renderChispaMessages() {
   const list = $('#chispaMessages');
   const stick = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
-  const messages = chispaFresh ? [] : chispa?.conversation?.messages || [];
-  const turn = chispa?.turn && !chispaFresh ? chispa.turn : null;
+  const messages = chispaViewing ? chispaViewing.messages : chispaFresh ? [] : chispa?.conversation?.messages || [];
+  const turn = chispa?.turn && !chispaFresh && !chispaViewing ? chispa.turn : null;
   list.innerHTML = [
-    ...(messages.length ? [] : [chispaBubble({role: 'chispa', text: chispaGreeting()})]),
+    ...(messages.length || chispaViewing ? [] : [chispaBubble({role: 'chispa', text: chispaGreeting()})]),
     ...messages.map(message => chispaBubble(message)),
     ...(turn ? [chispaBubble({role: 'chispa', text: turn.text, tools: turn.tools}, true)] : []),
   ].join('');
   if (stick || turn) list.scrollTop = list.scrollHeight;
+  const viewing = $('#chispaViewing');
+  viewing.hidden = !chispaViewing;
+  viewing.innerHTML = chispaViewing
+    ? `<span>Charla del ${escapeHtml(new Date(chispaViewing.startedAt).toLocaleString())} · sólo lectura</span><button type="button" class="quiet" data-chispa-current>Volver a la actual</button>`
+    : '';
+  const current = viewing.querySelector('[data-chispa-current]');
+  if (current) current.onclick = () => showChispaConversation(null);
+  $('#chispaForm').classList.toggle('is-viewing', Boolean(chispaViewing));
+}
+
+const formatWhen = value => new Date(value).toLocaleString([], {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});
+
+// Past conversations are only read: the model session behind them may use an older persona.
+async function loadChispaHistory() {
+  const list = $('#chispaHistoryList');
+  const conversations = await api('/api/chispa/conversations');
+  const currentId = chispa?.conversation?.id;
+  list.innerHTML = conversations.length
+    ? conversations.map(item => `<li><button type="button" class="link-button" data-chispa-conversation="${escapeHtml(item.id)}">
+        <b>${escapeHtml(formatWhen(item.lastAt))}${item.id === currentId ? ' · actual' : ''}</b>
+        <span>${escapeHtml(item.preview || '(sin mensajes)')}</span><small>${item.count} mensajes</small></button></li>`).join('')
+    : '<li class="chispa-history-empty">Todavía no hay charlas guardadas.</li>';
+  list.querySelectorAll('[data-chispa-conversation]').forEach(button => {
+    const id = button.dataset.chispaConversation;
+    button.onclick = () => showChispaConversation(id === currentId ? null : id).catch(error => toast(error.message));
+  });
+}
+
+async function showChispaConversation(id) {
+  chispaViewing = id ? await api(`/api/chispa/conversation?id=${encodeURIComponent(id)}`) : null;
+  if (id) chispaFresh = false;
+  $('#chispaHistory').open = false;
+  renderChispaMessages();
+  if (id) $('#chispaMessages').scrollTop = 0;
 }
 
 function renderChispa() {
@@ -802,9 +841,17 @@ $('#chispaAvatar').addEventListener('click', () => {
   void avatar.offsetWidth; // restart the jolt animation
   avatar.classList.add('zap');
   setTimeout(() => avatar.classList.remove('zap'), 550);
-  toast(CHISPA_QUIPS[Math.floor(Math.random() * CHISPA_QUIPS.length)]);
+  toast(pickChispazo(data?.catalog.modules || [], data?.state.currentModule));
+});
+$('#toast').addEventListener('click', () => {
+  clearTimeout(toastTimer);
+  $('#toast').classList.remove('show');
+});
+$('#chispaHistory').addEventListener('toggle', () => {
+  if ($('#chispaHistory').open) loadChispaHistory().catch(error => toast(error.message));
 });
 $('#chispaNew').onclick = () => {
+  chispaViewing = null;
   chispaFresh = true;
   renderChispaMessages();
   $('#chispaInput').focus();
@@ -1126,6 +1173,15 @@ $('#themeToggle').onclick = () => {
   applyTheme(currentTheme);
 };
 
+$('#libraryButton').onclick = () => openReader();
+// D opens the library, unless you are typing (Chispa's box, notes, any field) or a dialog is open.
+document.addEventListener('keydown', event => {
+  if (event.key.toLowerCase() !== 'd' || event.metaKey || event.ctrlKey || event.altKey || event.repeat) return;
+  const target = event.target;
+  if (target.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"])') || $('#logDialog').open || !$('#readerView').hidden) return;
+  event.preventDefault();
+  openReader();
+});
 // A plain click on any reader link opens the in-page reader; Cmd/Ctrl/middle-click still opens a tab.
 document.addEventListener('click', event => {
   const link = event.target.closest?.('a[href^="/reader.html?doc="]');
