@@ -22,6 +22,8 @@ instalar. Para Chispa hace falta [Claude Code](https://code.claude.com) con sesi
 funciona sin él.
 
 ```bash
+git clone https://github.com/cepintos/my-mentor.git
+cd my-mentor
 npm run dashboard
 ```
 

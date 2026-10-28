@@ -21,7 +21,7 @@ git pull
 Si trabajás en tu propio repo (por ejemplo, uno privado con tu curso), agregá el core una vez:
 
 ```bash
-git remote add upstream <url-del-core>
+git remote add upstream https://github.com/cepintos/my-mentor.git
 ```
 
 y después, cada vez que quieras actualizar:
