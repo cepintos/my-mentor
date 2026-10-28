@@ -29,7 +29,7 @@ test('Chispa MCP exposes only read tools and proposes memory as an inbox draft',
     call(5, 'ejecutar_shell', {cmd: 'rm -rf /'}),
   ]);
   assert.deepEqual(list.result.tools.map(tool => tool.name).sort(), [
-    'diff_del_lab', 'ejecucion', 'estado_del_curso', 'etapa', 'git_reciente',
+    'cambio_proponer', 'diff_del_lab', 'ejecucion', 'estado_del_curso', 'etapa', 'git_reciente',
     'memoria_buscar', 'memoria_leer', 'memoria_proponer', 'ultimas_ejecuciones',
   ]);
   assert.equal(JSON.parse(state.result.content[0].text).stage.id, 'D00');
@@ -40,6 +40,42 @@ test('Chispa MCP exposes only read tools and proposes memory as an inbox draft',
   assert.deepEqual(fs.readdirSync(path.join(root, '.companion/memory')), ['inbox']);
   assert.equal(invalid.result.isError, true);
   assert.equal(unknown.result.isError, true);
+});
+
+test('Chispa only proposes localized edits to course docs, and only the learner applies them', async t => {
+  const root = disposableRepo(t, {course: true});
+  const brief = 'course/demo/D00-primera-etapa/01-BRIEF.md';
+  const original = fs.readFileSync(path.join(root, brief), 'utf8');
+  const [proposed, lab, ambiguous, outside, guide] = await mcp(root, [
+    call(1, 'cambio_proponer', {ruta: brief, buscar: 'Contenido de prueba.', reemplazar: 'El entregable va en learning-labs/demo/D00/.', motivo: 'El brief no dice dónde va el entregable.'}),
+    call(2, 'cambio_proponer', {ruta: 'learning-labs/demo/D00/notas.md', buscar: 'TODO_LEARNER', reemplazar: 'resuelto', motivo: 'Esto no debería poder proponerse nunca.'}),
+    call(3, 'cambio_proponer', {ruta: brief, buscar: 'o', reemplazar: '0', motivo: 'Aparece muchas veces en el archivo.'}),
+    call(4, 'cambio_proponer', {ruta: '../course-state.json', buscar: '{', reemplazar: '[', motivo: 'Fuera del material del curso.'}),
+    call(5, 'cambio_proponer', {ruta: '00-EMPEZA-ACA.md', buscar: '# 00 — Empezá acá', reemplazar: '# 00 — Empezá', motivo: 'La guía del mentor es del core.'}),
+  ]);
+  assert.match(proposed.result.content[0].text, /todavía no cambió nada/);
+  assert.equal(fs.readFileSync(path.join(root, brief), 'utf8'), original);
+  for (const rejected of [lab, ambiguous, outside, guide]) assert.equal(rejected.result.isError, true);
+  assert.match(lab.result.content[0].text, /no es un documento del curso/);
+  assert.match(guide.result.content[0].text, /no es un documento del curso/);
+  assert.match(ambiguous.result.content[0].text, /exactamente una/);
+
+  const edits = await import(pathToFileURL(path.join(root, 'companion/edits.mjs')).href);
+  const [edit] = edits.listEdits();
+  assert.equal(edits.listEdits().length, 1);
+  assert.equal(edits.applyEdit(edit.id), brief);
+  assert.match(fs.readFileSync(path.join(root, brief), 'utf8'), /El entregable va en learning-labs\/demo\/D00\/\./);
+  assert.deepEqual(edits.listEdits(), []);
+  assert.throws(() => edits.applyEdit(edit.id), /No existe el cambio/);
+  assert.throws(() => edits.discardEdit('../../course-state'), /id de cambio inválido/);
+
+  // A proposal is checked again when applied: if the doc no longer matches, nothing is written.
+  const staleId = edits.proposeEdit({ruta: brief, buscar: '# D00 · 01-BRIEF', reemplazar: '# D00 · Brief', motivo: 'El título repite el nombre del archivo.'});
+  fs.writeFileSync(path.join(root, brief), '# Otro título\n');
+  assert.throws(() => edits.applyEdit(staleId), /aparece 0 veces/);
+  assert.equal(fs.readFileSync(path.join(root, brief), 'utf8'), '# Otro título\n');
+  edits.discardEdit(staleId);
+  assert.deepEqual(edits.listEdits(), []);
 });
 
 test('without a course Chispa still answers: no stage, no crash', async t => {

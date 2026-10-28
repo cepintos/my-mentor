@@ -32,10 +32,32 @@ async function api(path, options = {}) {
   return result;
 }
 
-// All documents open in the concept library (dashboard/reader.html); one named tab is reused.
-const READER_TAB = 'biblioteca-de-conceptos';
+// All documents open in the concept library (dashboard/reader.html), shown over the dashboard in
+// this same tab. The iframe is kept between openings, so the reader keeps its place, and the
+// dashboard (Chispa's draft, the running log) stays alive underneath. #leer marks it in history.
 const readerUrl = path => `/reader.html?doc=${encodeURIComponent(path)}`;
-const openReader = path => window.open(readerUrl(path), READER_TAB)?.focus();
+const READER_HASH = '#leer';
+
+function showReader(visible) {
+  const view = $('#readerView');
+  if (view.hidden === !visible) return;
+  view.hidden = !visible;
+  document.body.classList.toggle('reading', visible);
+  if (visible) $('#readerFrame').focus();
+}
+
+function openReader(path) {
+  const frame = $('#readerFrame');
+  if (!frame.getAttribute('src')) frame.src = readerUrl(path);
+  else frame.contentWindow?.postMessage({type: 'open-doc', path}, location.origin);
+  if (location.hash !== READER_HASH) history.pushState({reader: true}, '', READER_HASH);
+  showReader(true);
+}
+
+function closeReader() {
+  if (location.hash === READER_HASH) history.replaceState(null, '', location.pathname + location.search);
+  showReader(false);
+}
 
 function toast(message) {
   $('#toast').textContent = message;
@@ -185,7 +207,7 @@ const docTitle = name => `${name.slice(0, 2)} · ${documentTitles[name.slice(0, 
 function docLink(module, name) {
   const doc = module.docs.find(item => item.endsWith(name));
   return doc
-    ? `<a href="${escapeHtml(readerUrl(doc))}" target="${READER_TAB}">${escapeHtml(docTitle(name))}</a>`
+    ? `<a href="${escapeHtml(readerUrl(doc))}">${escapeHtml(docTitle(name))}</a>`
     : `<code>${escapeHtml(name)}</code>`;
 }
 
@@ -350,7 +372,7 @@ function renderJourney(module, action) {
       <ul class="reading-list">${reading.map(item => `<li>
         <label class="check"><input type="checkbox" data-read="${escapeHtml(item.name)}" ${item.read ? 'checked' : ''}>
           <span><b>${escapeHtml(item.name.slice(0, 2))}</b> ${escapeHtml(documentTitles[item.name.slice(0, 2)] || item.name)}<small>${escapeHtml(documentDescriptions[item.name.slice(0, 2)] || '')}</small></span></label>
-        <a class="row-link" href="${escapeHtml(readerUrl(item.path))}" target="${READER_TAB}">Abrir ↗</a>
+        <a class="row-link" href="${escapeHtml(readerUrl(item.path))}">Abrir ↗</a>
       </li>`).join('')}</ul>`
     : '<p class="phase-hint">Esta etapa no tiene lectura previa propia: empezá por el plan.</p>';
 
@@ -396,7 +418,7 @@ function renderJourney(module, action) {
       <div class="review-options" role="group" aria-label="Resultado del review">
         ${['pass', 'fail'].map(value => `<button type="button" class="review-option review-${value}" data-review="${value}" aria-pressed="${record.review === value}"><span class="review-dot" aria-hidden="true"></span>${reviewName(value)}</button>`).join('')}
       </div></div>` : '<p class="phase-hint">Se habilita cuando el check está al día y marcaste los criterios.</p>'}
-    <p class="phase-hint">El review lo hace ${reviewer}: revisa contra los criterios y no parchea tu código.${commandById('mentor-review')?.available ? '' : ` Para pedirlo desde acá, configurá el agente de review (<a href="${escapeHtml(readerUrl('04-COMO-USAR-EL-MENTOR.md'))}" target="${READER_TAB}">cómo</a>).`}</p>`;
+    <p class="phase-hint">El review lo hace ${reviewer}: revisa contra los criterios y no parchea tu código.${commandById('mentor-review')?.available ? '' : ` Para pedirlo desde acá, configurá el agente de review (<a href="${escapeHtml(readerUrl('04-COMO-USAR-EL-MENTOR.md'))}">cómo</a>).`}</p>`;
 
   const info = [
     module.requirements ? `<details class="mission-section"><summary>Qué puede demostrar cada entorno</summary><div class="requirements-grid">${Object.entries(module.requirements).map(([label, value]) => `<div><b>${escapeHtml(label)}</b><span>${escapeHtml(value)}</span></div>`).join('')}</div></details>` : '',
@@ -451,7 +473,7 @@ function renderActions(module) {
 
 // ---------- empty course ----------
 const mentorDocLink = (doc, label) => ((data.mentorDocs || []).includes(doc)
-  ? `<a class="row-link" href="${escapeHtml(readerUrl(doc))}" target="${READER_TAB}">${escapeHtml(label)} ↗</a>`
+  ? `<a class="row-link" href="${escapeHtml(readerUrl(doc))}">${escapeHtml(label)} ↗</a>`
   : '');
 
 function renderFirstSteps() {
@@ -474,7 +496,7 @@ function renderFirstSteps() {
 
 function renderMentorDocs() {
   return `<div class="doc-list">${(data.mentorDocs || []).map(doc => `
-    <a class="docbtn" href="${escapeHtml(readerUrl(doc))}" target="${READER_TAB}">
+    <a class="docbtn" href="${escapeHtml(readerUrl(doc))}">
       <span class="doc-number">${escapeHtml(doc.slice(0, 2))}</span>
       <span><b>${escapeHtml(doc)}</b><small>Guía del mentor</small></span>
     </a>`).join('')}</div>`;
@@ -511,11 +533,11 @@ const renderView = () => (hasModules() ? renderModule() : renderEmptyCourse());
 function renderMaterial(module) {
   const referenceIndex = (data.catalog.references || []).find(doc => doc === `course/${module.track}/referencia/00-INDICE.md`);
   const docs = module.docs.map((doc, index) => `
-    <a class="docbtn" href="${escapeHtml(readerUrl(doc))}" target="${READER_TAB}">
+    <a class="docbtn" href="${escapeHtml(readerUrl(doc))}">
       <span class="doc-number">${String(index).padStart(2, '0')}</span>
       <span><b>${escapeHtml(fileName(doc))}</b><small>${escapeHtml(documentDescriptions[fileName(doc).slice(0, 2)] || 'Material complementario')}</small></span>
     </a>`).join('');
-  return `${referenceIndex ? `<a class="docbtn reference-link" href="${escapeHtml(readerUrl(referenceIndex))}" target="${READER_TAB}"><span class="doc-number">ref</span><span><b>Biblioteca de conceptos ↗</b><small>Todo el material se abre ahí, en otra pestaña y sin internet</small></span></a>` : ''}
+  return `${referenceIndex ? `<a class="docbtn reference-link" href="${escapeHtml(readerUrl(referenceIndex))}"><span class="doc-number">ref</span><span><b>Biblioteca de conceptos ↗</b><small>Todo el material se abre ahí, en esta misma pestaña y sin internet</small></span></a>` : ''}
     <div class="doc-list">${docs}</div>
     <details class="notes"><summary>Notas personales</summary>
       <textarea id="notes" data-module="${module.id}" placeholder="Opcionales; no son evidencia. Se guardan al salir del campo.">${escapeHtml(module.state.notes || '')}</textarea>
@@ -628,6 +650,11 @@ function renderChispa() {
       <small>CHISPA QUIERE RECORDAR · ${escapeHtml(draft.tipo)} · ${escapeHtml(draft.modulo)}${draft.recuperado ? ' · volvió a pasar' : ''}</small>
       <p>${escapeHtml(draft.indicativa)}</p>
       <div><button type="button" data-shard-save="${escapeHtml(draft.id)}">Guardar</button><button type="button" class="quiet" data-shard-discard="${escapeHtml(draft.id)}">Descartar</button></div>
+    </article>`).join('') + (chispa.edits || []).map(edit => `<article class="chispa-draft chispa-edit">
+      <small>CHISPA PROPONE UN CAMBIO · <a href="${escapeHtml(readerUrl(edit.ruta))}">${escapeHtml(edit.ruta)}</a></small>
+      <p>${escapeHtml(edit.motivo)}</p>
+      <details open><summary>Ver el cambio</summary><pre class="chispa-diff"><del>${escapeHtml(edit.buscar)}</del><ins>${escapeHtml(edit.reemplazar)}</ins></pre></details>
+      <div><button type="button" data-edit-apply="${escapeHtml(edit.id)}">Aplicar</button><button type="button" class="quiet" data-edit-discard="${escapeHtml(edit.id)}">Descartar</button></div>
     </article>`).join('');
   renderChispaMessages();
   const busy = Boolean(chispa.turn) || !chispa.available;
@@ -733,6 +760,22 @@ function bindChispa() {
           toast(save ? 'Chispa lo va a recordar' : 'Borrador descartado');
         })
         .catch(error => toast(error.message));
+    };
+  });
+  document.querySelectorAll('[data-edit-apply], [data-edit-discard]').forEach(button => {
+    button.onclick = () => {
+      const apply = Boolean(button.dataset.editApply);
+      button.disabled = true;
+      api('/api/chispa/edit', {method: 'POST', body: JSON.stringify({action: apply ? 'apply' : 'discard', id: button.dataset.editApply || button.dataset.editDiscard})})
+        .then(result => {
+          chispa = result;
+          renderChispa();
+          toast(apply ? 'Cambio aplicado' : 'Cambio descartado');
+        })
+        .catch(error => {
+          button.disabled = false;
+          toast(error.message);
+        });
     };
   });
   $('#chispaMessages').querySelectorAll('[data-doc-link]').forEach(link => {
@@ -1082,6 +1125,20 @@ $('#themeToggle').onclick = () => {
   try { localStorage.setItem('mentor-theme', currentTheme); } catch {}
   applyTheme(currentTheme);
 };
+
+// A plain click on any reader link opens the in-page reader; Cmd/Ctrl/middle-click still opens a tab.
+document.addEventListener('click', event => {
+  const link = event.target.closest?.('a[href^="/reader.html?doc="]');
+  if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  openReader(new URL(link.href).searchParams.get('doc'));
+});
+window.addEventListener('message', event => {
+  if (event.origin === location.origin && event.source === $('#readerFrame').contentWindow && event.data?.type === 'close-reader') closeReader();
+});
+// Back/forward across #leer shows or hides the reader; on a fresh load #leer has no doc to show.
+window.addEventListener('popstate', () => showReader(location.hash === READER_HASH && Boolean($('#readerFrame').getAttribute('src'))));
+if (location.hash === READER_HASH) history.replaceState(null, '', location.pathname + location.search);
 
 refresh().then(refreshChispa).catch(error => toast(error.message));
 connectLive();

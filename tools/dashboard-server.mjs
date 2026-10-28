@@ -8,13 +8,13 @@ import {
   ROOT,
   IGNORED_NAMES,
   completionRequirements,
-  courseDocs,
   courseWideDocs,
   docs,
   evidenceSnapshot,
   getModule,
   isLabFile,
   labStatus,
+  libraryDocs,
   load,
   mentorDocs,
   moduleDir,
@@ -39,6 +39,7 @@ import {
 import {bootText} from '../companion/boot.mjs';
 import {claudeExecutable, runTurn} from '../companion/claude.mjs';
 import {chispaConfig, CONVERSATIONS_DIR, PROFILE_FILE} from '../companion/config.mjs';
+import {applyEdit, discardEdit, listEdits} from '../companion/edits.mjs';
 import {approveShard, discardShard, listShards, recordRun, summary} from '../companion/memory.mjs';
 import {progressSnapshot} from '../companion/progress.mjs';
 
@@ -422,14 +423,16 @@ function environmentData(state, catalog) {
 
 // Everything the concept library can open, grouped by track: top-level docs, module material
 // and the reference index (when the track has one), plus the mentor's guide and course-wide docs.
-// Read-only; /api/doc enforces the same set.
+// Each module carries its reading list, so the reader marks what was read and what comes next.
+// Read-only; /api/doc enforces the same set (libraryDocs).
 function libraryData() {
-  const {catalog} = load();
+  const {catalog, state} = load();
   const references = new Set(referenceDocs(catalog));
   const docsByTrack = trackDocs(catalog);
   return {
     mentorDocs: mentorDocs(),
     courseDocs: courseWideDocs(),
+    currentModule: state.currentModule || null,
     tracks: Object.fromEntries(Object.entries(catalog.tracks).map(([track, info]) => {
       const referenceIndex = `course/${track}/referencia/00-INDICE.md`;
       return [track, {
@@ -438,7 +441,12 @@ function libraryData() {
         referenceIndex: references.has(referenceIndex) ? referenceIndex : null,
         modules: catalog.modules
           .filter(module => module.track === track)
-          .map(module => ({id: module.id, title: module.title, docs: docs(module)})),
+          .map(module => ({
+            id: module.id,
+            title: module.title,
+            docs: docs(module),
+            reading: readingStatus(module, state.modules[module.id]).map(({path, read}) => ({path, read})),
+          })),
       }];
     })),
   };
@@ -629,6 +637,7 @@ function chispaData() {
     conversation: conversation ? {id: conversation.id, startedAt: conversation.startedAt, messages: conversation.messages.slice(-40)} : null,
     turn: chispaTurn ? {conversationId: chispaTurn.conversation.id, text: chispaTurn.text, tools: chispaTurn.tools} : null,
     drafts: shards.filter(shard => shard.inbox).map(summary),
+    edits: listEdits(),
     memoryCount: shards.filter(shard => !shard.inbox).length,
   };
 }
@@ -694,6 +703,19 @@ function chispaMemory(payload) {
   else if (payload.action === 'discard') discardShard(payload.id);
   else throw new Error('Acción de memoria inválida');
   broadcast('chispa', {type: 'memory'});
+  return chispaData();
+}
+
+// Proposed doc edits change the repo only here, on the learner's Aplicar; the file watcher then
+// tells the dashboard and the reader that the doc changed.
+function chispaEdit(payload) {
+  if (!payload || typeof payload !== 'object' || Object.keys(payload).some(key => !['action', 'id'].includes(key))) {
+    throw new Error('Sólo se aceptan action e id');
+  }
+  if (payload.action === 'apply') applyEdit(payload.id);
+  else if (payload.action === 'discard') discardEdit(payload.id);
+  else throw new Error('Acción de cambio inválida');
+  broadcast('chispa', {type: 'edit'});
   return chispaData();
 }
 
@@ -781,12 +803,12 @@ const server = http.createServer(async (request, response) => {
       return sendJson(response, 200, {stopped: true});
     }
     if (request.method === 'POST' && url.pathname === '/api/chispa/memory') return sendJson(response, 200, chispaMemory(await readJsonBody(request)));
+    if (request.method === 'POST' && url.pathname === '/api/chispa/edit') return sendJson(response, 200, chispaEdit(await readJsonBody(request)));
     if (request.method === 'GET' && url.pathname === '/api/library') return sendJson(response, 200, libraryData());
     if (request.method === 'GET' && url.pathname === '/api/doc') {
       const relative = url.searchParams.get('path') || '';
       const {catalog} = load();
-      const allowedDocs = new Set([...catalog.modules.flatMap(docs), ...referenceDocs(catalog), ...trackDocs(catalog), ...courseDocs()]);
-      if (!allowedDocs.has(relative)) return sendJson(response, 403, {error: 'Documento no permitido'});
+      if (!libraryDocs(catalog).has(relative)) return sendJson(response, 403, {error: 'Documento no permitido'});
       return send(response, 200, fs.readFileSync(safe(relative), 'utf8'), 'text/markdown; charset=utf-8');
     }
 
@@ -802,6 +824,7 @@ const server = http.createServer(async (request, response) => {
 });
 
 let changeTimer;
+const changedPaths = new Set();
 function markStaleEvidence(relative) {
   const {catalog, state} = load();
   let changed = false;
@@ -830,15 +853,24 @@ try {
   fs.watch(ROOT, {recursive: true}, (_event, filename) => {
     const relative = String(filename || '').split(path.sep).join('/');
     const stateWrite = relative === 'course-state.json' || /^course-state\.json\.\d+\.tmp$/.test(relative);
-    if (!relative || stateWrite || relative.split('/').some(part => IGNORED_NAMES.has(part))) return;
+    // Atomic writes (an applied edit, the progress file) pass through "<file>.<pid>.tmp" first.
+    if (!relative || stateWrite || /\.\d+\.tmp$/.test(relative) || relative.split('/').some(part => IGNORED_NAMES.has(part))) return;
+    // Several files can change inside one debounce window (an editor save, an applied edit):
+    // report each one, so the reader knows whether the doc on screen is among them.
+    changedPaths.add(relative);
     clearTimeout(changeTimer);
     changeTimer = setTimeout(() => {
-      try {
-        markStaleEvidence(relative);
-      } catch (error) {
-        console.warn(`No pude revisar la evidencia: ${error.message}`);
+      const at = new Date().toISOString();
+      for (const changed of changedPaths) {
+        // A catalog or module.json saved with a syntax error must not take the dashboard down.
+        try {
+          markStaleEvidence(changed);
+        } catch (error) {
+          console.warn(`No pude revisar la evidencia: ${error.message}`);
+        }
+        broadcast('change', {path: changed, at});
       }
-      broadcast('change', {path: relative, at: new Date().toISOString()});
+      changedPaths.clear();
     }, 180);
   });
 } catch (error) {

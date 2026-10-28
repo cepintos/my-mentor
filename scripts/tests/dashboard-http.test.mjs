@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import http from 'node:http';
 import path from 'node:path';
+import {pathToFileURL} from 'node:url';
 import {disposableRepo, startDashboard, write} from './helpers.mjs';
 
 test('the localhost dashboard rejects untrusted requests and premature completion', {timeout: 60000}, async t => {
@@ -146,4 +148,61 @@ test('a fresh copy without a course serves the dashboard, the guide and the glob
   assert.deepEqual(grown.catalog.modules.map(module => module.id), ['A00']);
   assert.deepEqual(grown.catalog.routes.map(route => route.id), ['complete']);
   assert.equal(grown.catalog.defaultRoute, 'complete');
+});
+
+test('Chispa edits change docs only through the dashboard, the reader gets reading marks and bad JSON never stops the watcher', {timeout: 60000}, async t => {
+  const root = disposableRepo(t, {course: true});
+  const brief = 'course/demo/D00-primera-etapa/01-BRIEF.md';
+  const edits = await import(pathToFileURL(path.join(root, 'companion/edits.mjs')).href);
+  const id = edits.proposeEdit({ruta: brief, buscar: 'Contenido de prueba.', reemplazar: 'El entregable va en learning-labs/demo/D00/.', motivo: 'El brief no dice dónde va el entregable.'});
+  const {port, request, json} = await startDashboard(t, root);
+
+  // Every changed path arrives as its own event, and the server never stops sending them.
+  const events = await new Promise((resolve, reject) => {
+    http.get({hostname: '127.0.0.1', port, path: '/api/events'}, resolve).on('error', reject);
+  });
+  t.after(() => events.destroy());
+  events.setEncoding('utf8');
+  let stream = '';
+  let closed = false;
+  events.on('data', chunk => { stream += chunk; });
+  events.on('close', () => { closed = true; });
+  const reported = async file => {
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      if (stream.includes(`"path":"${file}"`)) return;
+      if (closed) throw new Error('El servidor cortó los eventos');
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    throw new Error(`El watcher nunca avisó ${file}`);
+  };
+
+  // The reader learns what was read and which stage comes now.
+  assert.equal((await json('/api/module', {moduleId: 'D00', action: 'start'})).status, 200);
+  assert.equal((await json('/api/module', {moduleId: 'D00', action: 'read', doc: '00-EMPEZA-ACA.md', value: true})).status, 200);
+  const library = (await json('/api/library')).data;
+  assert.equal(library.currentModule, 'D00');
+  const reading = library.tracks.demo.modules.find(module => module.id === 'D00').reading;
+  assert.deepEqual(reading[0], {path: 'course/demo/D00-primera-etapa/00-EMPEZA-ACA.md', read: true});
+  assert.ok(reading.length > 1 && reading.slice(1).every(entry => entry.read === false));
+
+  // Chispa's proposal is listed, and only Aplicar in the dashboard writes the doc.
+  assert.deepEqual((await json('/api/chispa')).data.edits.map(edit => edit.id), [id]);
+  for (const payload of [{action: 'apply', id, ruta: 'AGENTS.md'}, {action: 'rewrite', id}, {action: 'apply', id: '../../course-state'}]) {
+    assert.equal((await request('/api/chispa/edit', payload)).status, 400, JSON.stringify(payload));
+  }
+  const applied = await json('/api/chispa/edit', {action: 'apply', id});
+  assert.equal(applied.status, 200);
+  assert.deepEqual(applied.data.edits, []);
+  assert.match(fs.readFileSync(path.join(root, brief), 'utf8'), /El entregable va en learning-labs\/demo\/D00\/\./);
+  await reported(brief);
+  assert.doesNotMatch(stream, /\.tmp"/);
+
+  // A catalog caught mid-write is reported like any change, and the server keeps serving.
+  const catalog = path.join(root, 'course/catalog.json');
+  const valid = fs.readFileSync(catalog, 'utf8');
+  fs.writeFileSync(catalog, valid.slice(0, Math.floor(valid.length / 2)));
+  await reported('course/catalog.json');
+  assert.equal((await request('/')).status, 200);
+  fs.writeFileSync(catalog, valid);
+  assert.equal((await json('/api/course')).status, 200);
 });

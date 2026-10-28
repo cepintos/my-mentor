@@ -3,6 +3,19 @@
 Cada versión dice qué cambió en el core y si hay que ajustar algo del curso. Cómo traer una versión
 nueva: [07-ACTUALIZAR-EL-CORE.md](07-ACTUALIZAR-EL-CORE.md).
 
+## 0.2.0 — 2026-10-28
+
+- Chispa propone cambios puntuales en los documentos de tu curso (`cambio_proponer`). Cada
+  propuesta muestra el antes y el después, y sólo se aplica cuando tocás **Aplicar**. Nunca toca la
+  guía del mentor, el laboratorio ni el código.
+- La Biblioteca de conceptos se abre en la misma pestaña, encima del dashboard: **← Dashboard** o
+  `D` vuelve. El documento abierto se actualiza solo cuando cambia en disco.
+- La Biblioteca marca con ✓ los documentos leídos y con un punto rojo el próximo de tu etapa.
+- El watcher avisa cada archivo que cambió, aunque varios cambien juntos.
+- El README empieza por el paso para clonar, y la guía de actualización trae la URL real del core.
+
+No hace falta tocar el curso.
+
 ## 0.1.0 — 2026-10-28
 
 Primera versión del core, sin módulos.

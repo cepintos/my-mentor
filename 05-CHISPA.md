@@ -36,13 +36,27 @@ explícitamente se rechaza sin preguntar.
   `diff_del_lab`. Son comandos fijos: no aceptan programas ni rutas para ejecutar.
 - **Web:** `WebSearch` libre; `WebFetch` sólo a `webFetchDomains`. Leer tu repo, leer la web y
   poder pedir cualquier URL juntos permitirían filtrar datos; por eso `WebFetch` tiene lista.
-- **No tiene shell** ni puede editar archivos. La única escritura es `memoria_proponer`, que deja
-  un borrador.
+- **No tiene shell** ni edita archivos por su cuenta. Sus dos escrituras dejan borradores que vos
+  aprobás: `memoria_proponer` (un recuerdo) y `cambio_proponer` (un cambio en tu material).
 - Sigue [`AGENTS.md`](AGENTS.md): enseña, no resuelve tu laboratorio y no afirma que algo compiló
   sin salida real. El review final lo sigue haciendo el agente de `mentor.config.json` (`active`).
 
 Desde el navegador sólo viaja tu mensaje (hasta 4000 caracteres) y si querés una charla nueva. El
 modelo, las herramientas, los permisos y el contexto los fija el servidor (`companion/claude.mjs`).
+
+### Cambios propuestos
+
+Cuando un documento de tu curso tiene un hueco (por ejemplo, un brief que no dice dónde va el
+entregable), Chispa propone un cambio puntual: texto exacto a reemplazar, texto nuevo y motivo.
+Aparece arriba del chat como "Chispa propone un cambio", con el antes y el después, y no toca nada
+hasta que tocás **Aplicar**. **Descartar** lo borra.
+
+- Sólo documentos de tu curso que abre la Biblioteca (`course/…/*.md`). Nunca la guía del mentor
+  de la raíz, que es del core, ni el laboratorio, código o configuración: la herramienta los
+  rechaza.
+- El texto a reemplazar tiene que aparecer una sola vez, y se vuelve a comprobar al aplicar: si el
+  archivo cambió y ya no coincide, el cambio no se aplica.
+- Las propuestas viven en `.companion/edits/` (fuera de git).
 
 ## Cómo arranca cada charla
 

@@ -223,6 +223,12 @@ export function trackDocs(catalog) {
   });
 }
 
+// Every Markdown doc the concept library can open: module material, track docs, references and
+// course-wide docs. /api/doc serves only these, and they are the only files Chispa may propose to edit.
+export function libraryDocs(catalog) {
+  return new Set([...catalog.modules.flatMap(docs), ...referenceDocs(catalog), ...trackDocs(catalog), ...courseDocs()]);
+}
+
 export function stats(catalog, state) {
   const tracks = {};
   for (const track of Object.keys(catalog.tracks)) {

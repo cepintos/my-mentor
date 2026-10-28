@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 // Chispa's "read commands": a stdio MCP server with fixed tools and no dependencies.
-// Every tool reads; the single write, memoria_proponer, only creates a draft in .companion/memory/inbox/.
+// Every tool reads; the two writes only create drafts the learner approves in the dashboard:
+// memoria_proponer (.companion/memory/inbox/) and cambio_proponer (.companion/edits/).
 // Nothing here accepts a command, an executable or a path to run.
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import {execFileSync} from 'node:child_process';
 import {ROOT, docs, getModule, load, safe} from '../scripts/lib.mjs';
+import {proposeEdit} from './edits.mjs';
 import {proposeShard, readShard, searchShards, SHARD_SECTIONS, SHARD_TYPES} from './memory.mjs';
 import {progressSnapshot, stageView} from './progress.mjs';
 
@@ -80,6 +82,21 @@ const tools = {
       additionalProperties: false,
     },
     run: fields => `Borrador ${proposeShard(fields, 'chispa')} creado. Espera que quien estudia lo guarde o descarte en el dashboard.`,
+  },
+  cambio_proponer: {
+    description: 'Propone un cambio puntual en un documento del curso (course/…/*.md que abre la biblioteca). No edita: queda pendiente hasta que quien estudia lo aplica en el dashboard. buscar es texto exacto del archivo y debe aparecer una sola vez; reemplazar es el texto nuevo. Rechaza la guía del mentor, archivos del laboratorio, código y configuración.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ruta: {type: 'string', description: 'Ruta relativa al repo, p. ej. course/<track>/A00-<slug>/01-BRIEF.md'},
+        buscar: {type: 'string', description: 'Texto exacto a reemplazar (hasta 4000 caracteres, una sola aparición)'},
+        reemplazar: {type: 'string', description: 'Texto nuevo (hasta 4000 caracteres)'},
+        motivo: {type: 'string', description: 'Por qué hace falta, 10–300 caracteres'},
+      },
+      required: ['ruta', 'buscar', 'reemplazar', 'motivo'],
+      additionalProperties: false,
+    },
+    run: fields => `Cambio ${proposeEdit(fields)} propuesto en ${fields.ruta}. Espera que quien estudia lo aplique o descarte en el dashboard; todavía no cambió nada.`,
   },
   ultimas_ejecuciones: {
     description: 'Últimas ejecuciones registradas (checks, tests, comandos del curso) con estado y fecha.',

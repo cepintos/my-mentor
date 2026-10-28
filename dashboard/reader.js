@@ -1,7 +1,8 @@
 // Biblioteca de conceptos: único lector de documentos Markdown del dashboard (guía del mentor,
-// material de cada módulo y referencia del track), en su propia pestaña, con temas, navegador
-// lateral, zoom, pantalla completa y atajos. Sólo lee documentos de /api/doc, que aplica la
-// allowlist del servidor.
+// material de cada módulo y referencia del track), con temas, navegador lateral, zoom, pantalla
+// completa y atajos. Vive dentro del dashboard, en la misma pestaña (un iframe que el dashboard
+// muestra y oculta); abierto solo, "← Dashboard" vuelve a /. Sólo lee documentos de /api/doc, que
+// aplica la allowlist del servidor.
 import {renderMarkdown} from './markdown.js';
 
 const $ = selector => document.querySelector(selector);
@@ -31,6 +32,8 @@ let libraryData;         // respuesta de /api/library, se pide una sola vez
 let currentPath = '';
 let currentPosition = -1; // índice en library; un mismo doc puede aparecer en varios grupos
 let currentTrack = '';
+const embedded = window.parent !== window;
+let readDocs = new Map(); // path → leído, de la lista de lectura de cada módulo (readDocs del estado)
 
 const store = {
   get(key) { try { return localStorage.getItem(`md-study-${key}`); } catch { return null; } },
@@ -147,10 +150,15 @@ async function toggleFullscreen() {
 // ---------- índice de la biblioteca ----------
 
 async function loadLibrary(requested) {
-  libraryData ||= await fetch('/api/library').then(response => {
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return response.json();
-  });
+  if (!libraryData) {
+    libraryData = await fetch('/api/library').then(response => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    });
+    readDocs = new Map(Object.values(libraryData.tracks)
+      .flatMap(info => info.modules.flatMap(module => module.reading || []))
+      .map(entry => [entry.path, entry.read]));
+  }
   // The requested track, else the one already open, else the first one; none while the course is empty.
   const track = [requested, currentTrack, Object.keys(libraryData.tracks)[0]]
     .find(candidate => candidate && Object.hasOwn(libraryData.tracks, candidate)) || null;
@@ -199,7 +207,16 @@ async function loadLibrary(requested) {
   library = items;
 }
 
+// The red dot marks the first unread doc of the current module's reading list, the one to read now.
+function nextReadingPath() {
+  const module = Object.values(libraryData?.tracks || {})
+    .flatMap(info => info.modules)
+    .find(candidate => candidate.id === libraryData.currentModule);
+  return module?.reading?.find(entry => !readDocs.get(entry.path))?.path || null;
+}
+
 function renderDocList() {
+  const next = nextReadingPath();
   const query = searchInput.value.trim().toLowerCase();
   const visible = library.filter(item => !query
     || item.title.toLowerCase().includes(query)
@@ -235,7 +252,22 @@ function renderDocList() {
     const position = library.indexOf(item);
     button.classList.toggle('active', position === currentPosition);
     button.dataset.path = item.path;
-    button.textContent = item.title;
+    const label = document.createElement('span');
+    label.className = 'nav-label';
+    label.textContent = item.title;
+    button.appendChild(label);
+    const read = readDocs.get(item.path);
+    const isNext = item.path === next;
+    button.classList.toggle('read', Boolean(read));
+    button.classList.toggle('next', isNext);
+    if (read || isNext) {
+      const mark = document.createElement('span');
+      mark.className = read ? 'read-mark' : 'next-dot';
+      mark.textContent = read ? '✓' : '';
+      mark.title = read ? 'Leído' : 'Siguiente para leer';
+      mark.setAttribute('aria-label', mark.title);
+      button.appendChild(mark);
+    }
     button.addEventListener('click', () => openDoc(item.path, {position}));
     docList.appendChild(button);
   }
@@ -324,7 +356,9 @@ async function appendReadingFooter(path) {
       });
       if (!response.ok) throw new Error((await response.json()).error || `HTTP ${response.status}`);
       item.read = !item.read;
+      readDocs.set(item.path, item.read);
       paint();
+      renderDocList();
     } catch (error) {
       status.textContent = `No se pudo guardar: ${error.message}`;
     } finally {
@@ -347,9 +381,10 @@ async function appendReadingFooter(path) {
   sheet.append(footer);
 }
 
-async function openDoc(path, {push = true, hash = '', position} = {}) {
-  document.body.classList.add('page-loading');
-  setStatus('Abriendo…');
+async function openDoc(path, {push = true, hash = '', position, keepScroll = false} = {}) {
+  const scrollTop = scrollArea.scrollTop;
+  if (!keepScroll) document.body.classList.add('page-loading');
+  setStatus(keepScroll ? 'Actualizando…' : 'Abriendo…');
   try {
     await loadLibrary(trackFor(path));
     const markdown = await fetchDoc(path);
@@ -366,7 +401,8 @@ async function openDoc(path, {push = true, hash = '', position} = {}) {
     setStatus(title);
     if (push) history.pushState({path}, '', `?doc=${encodeURIComponent(path)}`);
     const target = hash && document.getElementById(hash);
-    if (target) scrollToElement(target, 'auto');
+    if (keepScroll) scrollArea.scrollTo({top: scrollTop, behavior: 'auto'});
+    else if (target) scrollToElement(target, 'auto');
     else scrollArea.scrollTo({top: 0, behavior: 'auto'});
   } catch (error) {
     sheet.innerHTML = '';
@@ -378,6 +414,53 @@ async function openDoc(path, {push = true, hash = '', position} = {}) {
   } finally {
     document.body.classList.remove('page-loading');
   }
+}
+
+// ---------- volver al dashboard y cambios en vivo ----------
+
+function backToDashboard() {
+  if (embedded) window.parent.postMessage({type: 'close-reader'}, location.origin);
+  else location.href = '/';
+}
+
+// The dashboard reuses this reader: it asks for a doc instead of reloading the iframe.
+window.addEventListener('message', event => {
+  if (event.origin !== location.origin || event.source !== window.parent) return;
+  if (event.data?.type === 'open-doc' && typeof event.data.path === 'string') {
+    if (event.data.path === currentPath) return;
+    openDoc(event.data.path);
+  }
+});
+
+// The server watches the repo: when the doc on screen changes it is re-rendered in place, keeping
+// the scroll; course changes (a doc marked as read, a new doc) refresh the list and its marks.
+let libraryTimer;
+function refreshLibrary() {
+  clearTimeout(libraryTimer);
+  libraryTimer = setTimeout(async () => {
+    const track = currentTrack;
+    libraryData = undefined;
+    currentTrack = '';
+    try {
+      await loadLibrary(track);
+      currentPosition = library.findIndex(item => item.path === currentPath);
+      renderDocList();
+      updateDocPosition();
+    } catch {}
+  }, 300);
+}
+
+function connectLive() {
+  const events = new EventSource('/api/events');
+  events.addEventListener('change', event => {
+    const {path} = JSON.parse(event.data);
+    if (path === currentPath) {
+      openDoc(currentPath, {push: false, keepScroll: true, position: currentPosition})
+        .then(() => setStatus(`Actualizado ${new Date().toLocaleTimeString()}`));
+    }
+    if (/^course\/.*\.(md|json)$/.test(path)) refreshLibrary();
+  });
+  events.addEventListener('course', refreshLibrary);
 }
 
 // ---------- eventos ----------
@@ -398,6 +481,7 @@ $('#zoomInBtn').addEventListener('click', () => setZoom(Number(zoomInput.value) 
 zoomInput.addEventListener('change', () => setZoom(zoomInput.value));
 widthSelect.addEventListener('change', () => setSheetWidth(widthSelect.value));
 fullscreenBtn.addEventListener('click', toggleFullscreen);
+$('#dashboardBtn').addEventListener('click', backToDashboard);
 $('#prevDocBtn').addEventListener('click', () => stepDoc(-1));
 $('#nextDocBtn').addEventListener('click', () => stepDoc(1));
 $('#toggleNavBtn').addEventListener('click', () => setNavCollapsed(!document.body.classList.contains('nav-collapsed')));
@@ -438,6 +522,7 @@ document.addEventListener('keydown', event => {
   else if (key === 'n') $('#toggleNavBtn').click();
   else if (key === 'h') setHeaderHidden(!document.body.classList.contains('header-hidden'));
   else if (key === 'f') toggleFullscreen();
+  else if (key === 'd') backToDashboard();
   else if (event.key === '/') { event.preventDefault(); searchInput.focus(); }
 });
 
@@ -458,3 +543,4 @@ updateFullscreenButton();
 const initial = new URLSearchParams(location.search).get('doc') || DEFAULT_DOC;
 history.replaceState({path: initial}, '', `?doc=${encodeURIComponent(initial)}`);
 openDoc(initial, {push: false, hash: decodeURIComponent(location.hash.slice(1))});
+connectLive();

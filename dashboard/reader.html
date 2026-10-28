@@ -648,6 +648,18 @@
       font-weight: 700;
     }
 
+    .nav-item .nav-label { flex: 1; min-width: 0; }
+    .nav-item.read:not(.active) { color: var(--muted); }
+    .nav-item .read-mark { color: var(--muted); font-size: 13px; font-weight: 700; }
+    .nav-item .next-dot {
+      flex: none;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #e5484d;
+      box-shadow: 0 0 0 3px rgba(229, 72, 77, .18);
+    }
+
     .nav-item .page-num {
       color: var(--muted);
       min-width: 42px;
@@ -925,6 +937,7 @@
 </head>
 <body class="theme-dashboard">
   <header id="topbar" class="topbar">
+    <button id="dashboardBtn" title="Volver al dashboard (D)">← Dashboard</button>
     <button id="toggleNavBtn" class="icon" title="Mostrar/ocultar navegador (N)">☰</button>
     <div class="brand">Biblioteca de conceptos</div>
 

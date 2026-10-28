@@ -7,6 +7,7 @@ import {ROOT} from '../scripts/lib.mjs';
 export const COMPANION_DIR = path.join(ROOT, '.companion');
 export const MEMORY_DIR = path.join(COMPANION_DIR, 'memory');
 export const INBOX_DIR = path.join(MEMORY_DIR, 'inbox');
+export const EDITS_DIR = path.join(COMPANION_DIR, 'edits');
 export const CONVERSATIONS_DIR = path.join(COMPANION_DIR, 'conversations');
 export const NUDGES_FILE = path.join(COMPANION_DIR, 'nudges.json');
 export const PERSONA_FILE = path.join(ROOT, 'companion', 'PERSONA.md');

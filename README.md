@@ -6,9 +6,11 @@ vos.
 
 - **Dashboard local:** cada etapa en cuatro fases, *Entender → Hacer → Comprobar → Cerrar*, con un
   solo próximo paso y acciones de una lista cerrada. Sin terminal libre.
-- **Biblioteca de conceptos:** lector de Markdown en otra pestaña, para estudiar sin internet.
+- **Biblioteca de conceptos:** lector de Markdown dentro del dashboard, para estudiar sin internet.
+  Marca lo que leíste y cuál sigue.
 - **Chispa ⚡:** companion del panel lateral con memoria y recordatorios. Ve tu progreso real y te da
-  pistas sin resolver el laboratorio.
+  pistas sin resolver el laboratorio. Si un documento de tu curso tiene un hueco, te propone el
+  cambio y vos decidís si se aplica.
 - **module-builder:** skill que diseña tus módulos (objetivos, prerrequisitos, auditoría E→F) y los
   escribe recién cuando aprobás el currículo.
 - **Cualquier agente:** el review lo hace el CLI que elijas en `mentor.config.json`, o ninguno.

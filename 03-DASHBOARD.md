@@ -11,8 +11,12 @@ Una sola acción principal por momento.
 - **Etapa:** la pregunta central, las cuatro fases `Entender → Hacer → Comprobar → Cerrar` con su
   avance real y la tarjeta **Tu próximo paso**: qué hacer ahora, por qué y un único botón.
 - **Pestañas:** *Recorrido* (las cuatro fases desplegables), *Material* (documentos numerados y
-  notas; todo se abre en la Biblioteca de conceptos, en otra pestaña) y *Herramientas* (las
-  acciones que recomienda la etapa; el resto plegado).
+  notas; todo se abre en la Biblioteca de conceptos) y *Herramientas* (las acciones que recomienda
+  la etapa; el resto plegado).
+- **Biblioteca de conceptos:** se abre en esta misma pestaña, encima del dashboard, que sigue vivo
+  debajo. **← Dashboard** o la tecla `D` vuelve. Marca con ✓ lo que ya leíste y con un punto rojo
+  el próximo documento de tu etapa. Si el documento abierto cambia en disco, se actualiza solo. Con
+  Cmd o Ctrl, un enlace se abre en otra pestaña, como siempre.
 - **Columna lateral:** [Chispa](05-CHISPA.md), la ejecución en vivo, "Para revisar" (sólo checks y
   reviews reales) y la actividad reciente.
 

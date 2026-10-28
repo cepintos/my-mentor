@@ -1,6 +1,6 @@
 {
   "name": "my-mentor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Mentor local code-first: dashboard, Biblioteca de conceptos, Chispa y module-builder para armar tus propios cursos.",
   "license": "MIT",

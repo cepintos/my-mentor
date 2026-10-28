@@ -91,7 +91,7 @@ export function runTurn({message, sessionId, resume, systemPrompt, onEvent = () 
       for (const block of event.message?.content || []) {
         if (block.type !== 'tool_use') continue;
         const input = block.input || {};
-        const detail = input.file_path || input.pattern || input.query || input.url || input.id || input.consulta || '';
+        const detail = input.file_path || input.ruta || input.pattern || input.query || input.url || input.id || input.consulta || '';
         onEvent({type: 'tool', name: block.name.replace(/^mcp__chispa__/, ''), detail: String(detail).slice(0, 120)});
       }
     } else if (event.type === 'result') {
