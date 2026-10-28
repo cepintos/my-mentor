@@ -1,0 +1,40 @@
+{
+  "active": "claude-code",
+  "editor": {
+    "label": "VS Code",
+    "command": "code",
+    "args": []
+  },
+  "chispa": {
+    "model": "claude-sonnet-5-5",
+    "effort": "medium",
+    "nudgeEffort": "low",
+    "learnerName": "",
+    "quietHours": {"from": "23:00", "to": "08:30"},
+    "thresholds": {"noProgressHours": 20, "repeatAfterHours": 24},
+    "webFetchDomains": [
+      "developer.mozilla.org", "docs.python.org", "nodejs.org", "github.com",
+      "en.wikipedia.org", "es.wikipedia.org"
+    ]
+  },
+  "agents": {
+    "claude-code": {
+      "label": "Claude Code (modo plan, sólo lectura)",
+      "command": "claude",
+      "args": ["-p", "--permission-mode", "plan"],
+      "prompt": "stdin"
+    },
+    "ollama": {
+      "label": "Ollama local",
+      "command": "ollama",
+      "args": ["run", "qwen2.5-coder:7b"],
+      "prompt": "stdin"
+    },
+    "otro": {
+      "label": "Mi CLI",
+      "command": "mi-cli",
+      "args": ["--solo-lectura"],
+      "prompt": "stdin"
+    }
+  }
+}

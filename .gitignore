@@ -1,0 +1,31 @@
+node_modules/
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Logs y caches del dashboard
+.course/
+
+# Tu progreso: sus logs llevan rutas de tu máquina. Para versionarlo en un repo privado:
+# git add -f course-state.json (ver 07-ACTUALIZAR-EL-CORE.md)
+course-state.json
+course-state.json.*.tmp
+
+# Agente del mentor, editor y Chispa elegidos por cada persona (ver 04-COMO-USAR-EL-MENTOR.md)
+mentor.config.json
+
+# Chispa: memoria, conversaciones y recordatorios personales (ver 05-CHISPA.md)
+.companion/
+
+# Notas privadas: ni git ni Chispa las leen
+private/
+
+# Herramientas locales
+.idea/
+.vscode/
+.claude/worktrees/
+.claude/settings.local.json
+__pycache__/
+*.py[cod]
+.venv/

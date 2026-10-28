@@ -1,0 +1,17 @@
+{
+  "name": "my-mentor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mentor local code-first: dashboard, Biblioteca de conceptos, Chispa y module-builder para armar tus propios cursos.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.11"
+  },
+  "scripts": {
+    "dashboard": "node tools/dashboard-server.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "check": "node scripts/check.mjs",
+    "course": "node scripts/course.mjs",
+    "course:check": "node scripts/course-check.mjs"
+  }
+}
